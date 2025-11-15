@@ -149,6 +149,7 @@ class SceneTwo_History(Scene):
 
 class SceneThree_WhatIsBayesianism(Scene):
     def construct(self):
+        # Background
         config.background_color = BG
 
         # --- Title ---
@@ -159,120 +160,122 @@ class SceneThree_WhatIsBayesianism(Scene):
         title.to_edge(UP, buff=0.6)
         self.play(FadeIn(title, shift=0.2 * UP), run_time=0.8)
 
-        # --- Bayes' theorem (single TeX string) ---
+        # --- Bayes' theorem (with isolated substrings) ---
         equation = MathTex(
-            r"P(H \mid E) = \frac{P(E \mid H)\,P(H)}{P(E)}",
-            color=WHITE
+            r"P(H \mid E)=", r"{P(E \mid H)P(H) \over P(E)}",
+            substrings_to_isolate=[
+                r"P(H \mid E)",   # posterior
+                r"P(E \mid H)",   # likelihood
+                r"P(H)",          # prior
+                r"P(E)",          # evidence
+            ],
+            color=WHITE,
         ).scale(1.4)
-        # Put the equation at the center of the screen
+
         equation.move_to(ORIGIN)
-        self.play(Write(equation), run_time=1.8)
-        self.wait(0.6)
+        self.play(Write(equation), run_time=1.5)
+        self.wait(0.5)
 
-        # Color parts after creation
-        equation.set_color_by_tex(r"P(H \mid E)", COLOR_POST)
-        equation.set_color_by_tex(r"P(E \mid H)", COLOR_LIKE)
-        equation.set_color_by_tex(r"P(H)",        COLOR_PRIOR)
-        equation.set_color_by_tex(r"P(E)",        COLOR_EVID)
-
-        # Grab references to each part
+        # Grab references to the pieces we care about
         posterior = equation.get_part_by_tex(r"P(H \mid E)")
         likelihood = equation.get_part_by_tex(r"P(E \mid H)")
-        # These strings occur twice; get_part_by_tex returns a VGroup
-        prior_group = equation.get_part_by_tex(r"P(H)")
-        prior = prior_group[-1] if isinstance(prior_group, VGroup) else prior_group
-        evid_group = equation.get_part_by_tex(r"P(E)")
-        evidence = evid_group[-1] if isinstance(evid_group, VGroup) else evid_group
+        prior = equation.get_part_by_tex(r"P(H)")
+        evidence = equation.get_part_by_tex(r"P(E)")
 
-        # Helper to show an arrow and label for a given part
-        def annotate(part, color, title_text, *body_lines, direction=DOWN):
-            # Arrow pointing from text to part
-            if direction is DOWN:
-                arrow = Arrow(
-                    start=part.get_bottom() + DOWN * 1.2,
-                    end=part.get_bottom(),
-                    buff=0.05,
-                    color=color
-                )
-                label_pos = arrow.get_start() + DOWN * 0.3
-                shift_dir = 0.1 * DOWN
-            else:  # UP
-                arrow = Arrow(
-                    start=part.get_top() + UP * 1.2,
-                    end=part.get_top(),
-                    buff=0.05,
-                    color=color
-                )
-                label_pos = arrow.get_start() + UP * 0.3
-                shift_dir = 0.1 * UP
+        # Helper to animate “highlight + arrow + label” for one part
+        def explain_part(mobj, label_text, expl_text, color,
+                         position="below", wait_time=2.0):
+            """
+            position = "above": label+arrow above, equation nudged down
+            position = "below": label+arrow below, equation nudged up
+            """
+            shift_vec = UP * 0.4 if position == "below" else DOWN * 0.4
 
-            title_line = Text(title_text, color=color, font_size=28)
-            extra_lines = [
-                Text(txt, color=GREY_C, font_size=24) for txt in body_lines
-            ]
-            label = VGroup(title_line, *extra_lines).arrange(
-                DOWN, aligned_edge=LEFT, buff=0.08
+            # Nudge the whole equation first to make space
+            self.play(equation.animate.shift(shift_vec), run_time=1.0)
+
+            # Label + explanation
+            label = Text(label_text, font_size=32, weight="BOLD", color=color)
+            expl = Text(expl_text, font_size=26)
+            label_group = VGroup(label, expl).arrange(
+                DOWN, aligned_edge=LEFT, buff=0.15
             )
-            label.move_to(label_pos, aligned_edge=LEFT)
 
+            if position == "below":
+                # Text below, arrow pointing up to the term
+                label_group.next_to(equation, DOWN, buff=0.7)
+                arrow = Arrow(
+                    start=label_group.get_top(),
+                    end=mobj.get_bottom(),
+                    buff=0.12,
+                    stroke_width=2.2,
+                    max_tip_length_to_length_ratio=0.10,
+                )
+                text_shift_dir = UP
+            else:
+                # Text above, arrow pointing down to the term
+                label_group.next_to(equation, UP, buff=0.7)
+                arrow = Arrow(
+                    start=label_group.get_bottom(),
+                    end=mobj.get_top(),
+                    buff=0.12,
+                    stroke_width=2.2,
+                    max_tip_length_to_length_ratio=0.10,
+                )
+                text_shift_dir = DOWN
+
+            # Animate in: color the piece, grow arrow, fade in text
             self.play(
+                mobj.animate.set_color(color),
                 GrowArrow(arrow),
-                FadeIn(label, shift=shift_dir),
-                run_time=0.8
+                FadeIn(label_group, shift=0.1 * text_shift_dir),
+                run_time=1.5,
             )
-            self.wait(2)
-            self.play(FadeOut(arrow), FadeOut(label), run_time=0.6)
+            self.wait(wait_time)
 
-        # 1. Posterior
-        annotate(
+            # De-emphasize + move equation back
+            self.play(
+                mobj.animate.set_color(WHITE),
+                FadeOut(arrow),
+                FadeOut(label_group),
+                equation.animate.shift(-shift_vec),
+                run_time=1.0,
+            )
+
+        # 1 Posterior (from above, push equation down)
+        explain_part(
             posterior,
+            "Posterior  P(H | E)",
+            "Your updated belief in H after seeing the evidence E.",
             COLOR_POST,
-            "Posterior: P(H | E)",
-            "Updated belief in hypothesis H",
-            "after seeing evidence E.",
-            direction=DOWN
+            position="below",
         )
 
-        # 2. Likelihood
-        annotate(
+        # 2 Likelihood (from above)
+        explain_part(
             likelihood,
+            "Likelihood  P(E | H)",
+            "How compatible the evidence E is with hypothesis H.",
             COLOR_LIKE,
-            "Likelihood: P(E | H)",
-            "How probable E is if H were true.",
-            direction=UP
+            position="above",
         )
 
-        # 3. Prior
-        annotate(
-            prior,
-            COLOR_PRIOR,
-            "Prior: P(H)",
-            "Initial belief in H before evidence.",
-            direction=DOWN
-        )
-
-        # 4. Evidence / normalizer
-        annotate(
+        # 3 Evidence / normalizing constant (from below, push equation up)
+        explain_part(
             evidence,
+            "Evidence  P(E)",
+            "Overall probability of seeing E under all hypotheses.",
             COLOR_EVID,
-            "Evidence / normalizer: P(E)",
-            "Overall probability of seeing E",
-            "across all the hypotheses we consider.",
-            direction=DOWN
+            position="below",
         )
 
-        # --- Final summary ---
-        self.play(equation.animate.set_opacity(1), run_time=0.4)
+        # 4 Prior (from above)
+        explain_part(
+            prior,
+            "Prior  P(H)",
+            "What you believed about H before seeing E.",
+            COLOR_PRIOR,
+            position="above",
+        )
 
-        summary = MathTex(
-            r"\text{Bayes' theorem: } \ Posterior \propto \ Likelihood \times Prior",
-            tex_to_color_map={
-                "Posterior": COLOR_POST,
-                "Likelihood": COLOR_LIKE,
-                "Prior": COLOR_PRIOR,
-            }
-        ).scale(0.9)
-        summary.next_to(equation, DOWN, buff=0.9)
-
-        self.play(FadeIn(summary, shift=0.2 * DOWN), run_time=1.0)
-        self.wait(3)
+        self.wait(0.5)
