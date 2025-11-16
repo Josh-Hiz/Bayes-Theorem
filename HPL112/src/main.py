@@ -1315,3 +1315,45 @@ class Scene7_Thanks(Scene):
         self.play(Flash(thanks, line_length=0.25, color=EVIDENCE_COLOR1, time_width=0.6),
                   run_time=0.6)
         self.wait(2.5)
+
+class FullBayesMovie(Scene):
+    def fade_out_all(self, run_time=0.6, pause=0.2):
+        """
+        Fade out everything currently on screen.
+        Call this between logical scenes.
+        """
+        if self.mobjects:
+            self.play(FadeOut(Group(*self.mobjects)), run_time=run_time)
+        self.wait(pause)
+
+    def construct(self):
+        self.camera.background_color = BG
+
+        # Scene 1
+        Scene1_TitleCard.construct(self)
+        self.fade_out_all()
+
+        # Scene 2
+        Scene2_History.construct(self)
+        self.fade_out_all()
+
+        # Scene 3
+        Scene3_WhatIsBayesianism.construct(self)
+        self.fade_out_all()
+
+        # Scene 4
+        Scene4_BayesVisualization.construct(self)
+        self.fade_out_all()
+
+        # Scene 5
+        Scene5_BayesEquationWithDiagrams.construct(self)
+        self.fade_out_all()
+
+        # Scene 6
+        Scene6_MainTakeaways.construct(self)
+        self.fade_out_all()
+
+        # Scene 7 (final – no fade after, unless you want a final fade to black)
+        Scene7_Thanks.construct(self)
+        # Optional final fade:
+        # self.fade_out_all()
